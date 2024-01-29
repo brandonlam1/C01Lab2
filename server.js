@@ -238,3 +238,80 @@ app.delete("/deleteNote/:noteId", express.json(), async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   });
+
+// Edit a note belonging to the user
+app.patch("/editNote/:noteId", express.json(), async (req, res) => {
+    try {
+      // Basic body request check
+      const { title, content } = req.body;
+      if (!title && !content) {
+        return res
+          .status(400)
+          .json({ error: "One of title or content are required." });
+      }
+
+      // Basic param checking
+      const noteId = req.params.noteId;
+      if (!ObjectId.isValid(noteId)) {
+        return res.status(400).json({ error: "Invalid note ID." });
+      }
+  
+      // Verify the JWT from the request headers
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, "secret-key", async (err, decoded) => {
+        if (err) {
+          return res.status(401).send("Unauthorized.");
+        }
+  
+        // Find note with given ID
+        const collection = db.collection(COLLECTIONS.notes);
+        const data = await collection.findOne({
+          username: decoded.username,
+          _id: new ObjectId(noteId),
+        });
+        if (!data) {
+          return res
+            .status(404)
+            .json({ error: "Unable to find note with given ID." });
+        }
+        if (!title) {
+            collection.updateOne({
+                username: decoded.username,
+                _id: new ObjectId(noteId),
+              },
+              {
+                $set:
+                    {
+                        content: content
+                    }
+              });
+        } else if (!content) {
+            collection.updateOne({
+                username: decoded.username,
+                _id: new ObjectId(noteId),
+              },
+              {
+                $set:
+                    {
+                        title: title
+                    }
+              });
+        } else {
+            collection.updateOne({
+                username: decoded.username,
+                _id: new ObjectId(noteId),
+              },
+              {
+                $set:
+                    {
+                        title: title,
+                        content: content
+                    }
+              });
+        }
+        res.json({ response: "Document with ID " + noteId + " properly updated." });
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
