@@ -170,3 +170,71 @@ app.get("/getNote/:noteId", express.json(), async (req, res) => {
       res.status(500).json({ error: error.message });
     }
   });
+
+// Retrieve all notes belonging to the user
+app.get("/getAllNotes", express.json(), async (req, res) => {
+    try {
+  
+      // Verify the JWT from the request headers
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, "secret-key", async (err, decoded) => {
+        if (err) {
+          return res.status(401).send("Unauthorized.");
+        }
+  
+        // Find all notes with from user
+        const collection = db.collection(COLLECTIONS.notes);
+        const data = await collection.find({
+          username: decoded.username
+        }).toArray();
+        // if (!data) {
+        //   return res
+        //     .status(404)
+        //     .json({ error: "Unable to find notes with given ID." });
+        // }
+
+        
+        res.json({ response: data });
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+// Delete a note belonging to the user
+app.delete("/deleteNote/:noteId", express.json(), async (req, res) => {
+    try {
+      // Basic param checking
+      const noteId = req.params.noteId;
+      if (!ObjectId.isValid(noteId)) {
+        return res.status(400).json({ error: "Invalid note ID." });
+      }
+  
+      // Verify the JWT from the request headers
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, "secret-key", async (err, decoded) => {
+        if (err) {
+          return res.status(401).send("Unauthorized.");
+        }
+  
+        // Find note with given ID
+        const collection = db.collection(COLLECTIONS.notes);
+        const data = await collection.findOne({
+          username: decoded.username,
+          _id: new ObjectId(noteId),
+        });
+        if (!data) {
+          return res
+            .status(404)
+            .json({ error: "Unable to find note with given ID." });
+        }
+        collection.deleteOne({
+            username: decoded.username,
+            _id: new ObjectId(noteId),
+          });
+        res.json({ response: "Document with ID " + noteId + " properly deleted." });
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
